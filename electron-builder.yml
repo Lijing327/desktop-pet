@@ -1,0 +1,27 @@
+appId: com.desktop-pet.app
+productName: 桌面宠物
+copyright: Copyright © 2024
+
+directories:
+  output: dist
+  buildResources: resources
+
+files:
+  - out/**
+  - node_modules/**
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

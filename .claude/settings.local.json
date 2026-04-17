@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('./node_modules/electron-vite/dist/index.cjs'\\); console.log\\('electron-vite OK'\\)\")",
+      "Bash(npx electron-vite *)",
+      "Bash(node -e \"const p=require\\('path'\\);const e=require\\('electron'\\);console.log\\('Electron path:', e\\);const fs=require\\('fs'\\);console.log\\('Exists:', fs.existsSync\\(String\\(e\\)\\)\\)\")",
+      "Read(//tmp/**)"
+    ]
+  }
+}
