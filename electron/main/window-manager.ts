@@ -1,6 +1,7 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import { appStore } from './store'
 
 const RENDERER_URL = process.env['ELECTRON_RENDERER_URL']
 const SNAP_DIST = 28  // 边缘吸附触发距离（像素）
@@ -17,11 +18,16 @@ export class WindowManager {
 
     const { width, height } = screen.getPrimaryDisplay().workAreaSize
 
+    // 恢复上次保存的位置；-1 表示首次启动，使用右下角默认位置
+    const saved = appStore.get('settings').petPosition
+    const initX = saved.x >= 0 ? saved.x : width - 220
+    const initY = saved.y >= 0 ? saved.y : height - 220
+
     this.petWindow = new BrowserWindow({
       width: 200,
       height: 200,
-      x: width - 220,
-      y: height - 220,
+      x: initX,
+      y: initY,
       transparent: true,
       frame: false,
       alwaysOnTop: true,
@@ -37,6 +43,14 @@ export class WindowManager {
 
     this.petWindow.on('closed', () => {
       this.petWindow = null
+    })
+
+    // 窗口移动时实时持久化位置，下次启动可恢复
+    this.petWindow.on('moved', () => {
+      if (!this.petWindow || this.petWindow.isDestroyed()) return
+      const [x, y] = this.petWindow.getPosition()
+      const settings = appStore.get('settings')
+      appStore.set('settings', { ...settings, petPosition: { x, y } })
     })
 
     this._loadPage(this.petWindow, '/pet')
