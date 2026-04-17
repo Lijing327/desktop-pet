@@ -8,10 +8,11 @@
       @mouseenter="onMouseEnter"
       @mouseleave="onMouseLeave"
     >
-      <PetCharacter
+      <PetLayeredCharacter
         :state="petStore.state"
         :anim-override="animOverride"
         :is-hovered="isHovered"
+        :facing-right="currentFacingRight"
       />
     </div>
 
@@ -26,17 +27,18 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
-import PetCharacter from '@/modules/pet/components/PetCharacter.vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import PetLayeredCharacter from '@/modules/pet/components/PetLayeredCharacter.vue'
 import { BubbleDisplay, useBubble } from '@/modules/bubble'
 import { usePetStore } from '@/app/stores/pet'
 import { useDrag } from '@/app/composables/useDrag'
 import { useInteraction } from '@/modules/pet/useInteraction'
+import { usePetBehavior } from '@/composables/usePetBehavior'
 
 // ── 状态 & 业务 ───────────────────────────────────────────────────────────
 const petStore = usePetStore()
 
-// ── 气泡（顶层解构 → 模板自动 unwrap）────────────────────────────────────
+// ── 气泡 ──────────────────────────────────────────────────────────────────
 const {
   visible: bubbleVisible,
   text: bubbleText,
@@ -46,12 +48,39 @@ const {
 
 // ── 拖拽 ──────────────────────────────────────────────────────────────────
 const { hasMoved, startDrag } = useDrag({
-  onDragEnd: (x, y) => petStore.savePosition(x, y),
+  onDragStart: () => petStore.onDragStart(),
+  onDragEnd: (x, y) => petStore.onDragEnd(x, y),
 })
 
 // ── 互动（单击/双击/hover）────────────────────────────────────────────────
 const { isHovered, animOverride, onPetClick, onMouseEnter, onMouseLeave } =
   useInteraction(petStore, hasMoved, showBubble)
+
+// ── follow 移动 + wait 注视 ───────────────────────────────────────────────
+const stateRef = computed(() => petStore.state)
+const { facingRight: behaviorFacingRight } = usePetBehavior(stateRef, () => petStore.onFollowArrived())
+
+// ── idle 随机看向方向 ─────────────────────────────────────────────────────
+const idleLookRight = ref(true)
+let idleLookTimer: ReturnType<typeof setInterval> | null = null
+
+watch(stateRef, (s) => {
+  if (s === 'idle') {
+    idleLookTimer = setInterval(() => {
+      idleLookRight.value = Math.random() > 0.5
+    }, 4000 + Math.random() * 5000)
+  } else {
+    if (idleLookTimer) { clearInterval(idleLookTimer); idleLookTimer = null }
+  }
+}, { immediate: true })
+
+// ── 综合朝向：各状态使用不同来源 ─────────────────────────────────────────
+const currentFacingRight = computed(() => {
+  const s = petStore.state
+  if (s === 'follow' || s === 'wait') return behaviorFacingRight.value
+  if (s === 'idle') return idleLookRight.value
+  return true
+})
 
 // ── 工具 ──────────────────────────────────────────────────────────────────
 function openSettings(): void {
@@ -60,11 +89,12 @@ function openSettings(): void {
 
 // ── 生命周期 ──────────────────────────────────────────────────────────────
 let unlistenRemind: (() => void) | null = null
+let unlistenStateCmd: (() => void) | null = null
 
 onMounted(async () => {
   await petStore.init()
 
-  // P3 提醒联动：主进程推送 → 状态切换 + 气泡提醒文案
+  // 提醒联动：主进程推送 → 状态切换 + 气泡文案
   unlistenRemind = window.electronAPI.onReminderTrigger((type) => {
     petStore.handleRemind()
     const msgMap: Record<string, string> = {
@@ -74,10 +104,17 @@ onMounted(async () => {
     }
     showBubble({ text: msgMap[type] ?? undefined, category: 'reminder' })
   })
+
+  // 托盘状态命令：直接切换状态机
+  unlistenStateCmd = window.electronAPI.onPetStateCmd((state) => {
+    petStore.command(state)
+  })
 })
 
 onUnmounted(() => {
   unlistenRemind?.()
+  unlistenStateCmd?.()
+  if (idleLookTimer) clearInterval(idleLookTimer)
   petStore.$dispose()
   cleanupBubble()
 })
@@ -101,7 +138,6 @@ onUnmounted(() => {
   cursor: grabbing;
 }
 
-/* 宠物点击区域：hover translateY 不干扰 PetCharacter 的 transform 动画 */
 .pet-area {
   cursor: pointer;
   transition: filter 0.22s ease;

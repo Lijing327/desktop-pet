@@ -127,6 +127,12 @@ export class WindowManager {
     return { x, y }
   }
 
+  /** 鼠标穿透开关 — 开启后点击事件穿透到桌面 */
+  setMouseThrough(enabled: boolean): void {
+    if (!this.petWindow || this.petWindow.isDestroyed()) return
+    this.petWindow.setIgnoreMouseEvents(enabled, { forward: true })
+  }
+
   /** 拖拽结束后：将宠物吸附到最近屏幕边缘 */
   snapPetToEdge(): { x: number; y: number } {
     if (!this.petWindow || this.petWindow.isDestroyed()) return { x: 0, y: 0 }

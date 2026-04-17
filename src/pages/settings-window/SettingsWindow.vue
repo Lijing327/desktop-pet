@@ -2,7 +2,7 @@
   <div class="settings-window">
     <header class="header">
       <h1>设置</h1>
-      <span class="version">v0.1.0 MVP</span>
+      <span class="version">版本 v0.1.0</span>
     </header>
 
     <main class="content" v-if="settings">
@@ -76,7 +76,7 @@
         <div class="field">
           <label>
             <input type="checkbox" v-model="settings.app.launchAtStartup" @change="save" />
-            开机自启（P4 实现）
+            开机自启
           </label>
         </div>
         <div class="field">
@@ -88,7 +88,7 @@
         <div class="field">
           <label>
             <input type="checkbox" v-model="settings.app.hideToTray" @change="save" />
-            关闭时最小化到托盘（P3 实现）
+            关闭时最小化到托盘
           </label>
         </div>
       </section>
@@ -170,8 +170,6 @@ onMounted(load)
   font-size: 13px;
   font-weight: 600;
   color: #6d6d72;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin-bottom: 12px;
 }
 

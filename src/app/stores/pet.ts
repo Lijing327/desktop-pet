@@ -15,25 +15,47 @@ export const usePetStore = defineStore('pet', () => {
 
   async function init(): Promise<void> {
     const settings = await window.electronAPI.getSettings()
-    // -1 表示首次启动，保持主进程默认位置
     if (settings.petPosition.x !== -1) {
       position.value = settings.petPosition
     }
-    machine.start()
   }
 
+  /** 外部命令切换状态（来自托盘 / IPC 推送） */
+  function command(to: PetState): void {
+    machine.command(to)
+  }
+
+  /** 用户点击宠物 */
   function handleClick(): void {
     machine.triggerClick()
   }
 
+  /** 提醒通知触发 */
   function handleRemind(): void {
     machine.triggerRemind()
   }
 
-  async function savePosition(x: number, y: number): Promise<void> {
+  /** follow 模式到达目标 */
+  function onFollowArrived(): void {
+    machine.onFollowArrived()
+  }
+
+  /** 拖拽开始 */
+  function onDragStart(): void {
+    machine.onDragStart()
+  }
+
+  /** 拖拽结束并保存位置 */
+  async function onDragEnd(x: number, y: number): Promise<void> {
+    machine.onDragEnd()
     position.value = { x, y }
     const settings = await window.electronAPI.getSettings()
     await window.electronAPI.saveSettings({ ...settings, petPosition: { x, y } })
+  }
+
+  // 兼容旧调用（PetWindow 中 useDrag onDragEnd 回调）
+  async function savePosition(x: number, y: number): Promise<void> {
+    await onDragEnd(x, y)
   }
 
   function $dispose(): void {
@@ -41,5 +63,17 @@ export const usePetStore = defineStore('pet', () => {
     machine.destroy()
   }
 
-  return { state, position, init, handleClick, handleRemind, savePosition, $dispose }
+  return {
+    state,
+    position,
+    init,
+    command,
+    handleClick,
+    handleRemind,
+    onFollowArrived,
+    onDragStart,
+    onDragEnd,
+    savePosition,
+    $dispose,
+  }
 })

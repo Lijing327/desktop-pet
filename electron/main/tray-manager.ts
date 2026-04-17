@@ -2,27 +2,30 @@ import { Tray, Menu, app } from 'electron'
 import type { WindowManager } from './window-manager'
 import type { Scheduler } from './scheduler'
 import { buildColorIcon } from './utils/icon-builder'
+import { appStore } from './store'
+import { Channels } from '../shared/channels'
+import type { PetState } from '../shared/types'
 
 /**
  * 系统托盘管理器
  *
- * 菜单项：显示/隐藏宠物、打开设置、暂停/恢复提醒、退出
- * 状态同步：每次点击"暂停/恢复"后重建菜单，确保 label 与实际状态一致
+ * 菜单包含：显示/隐藏、状态切换（跟随/等待/睡觉/待机）、
+ * 鼠标穿透、打开设置、暂停/恢复提醒、退出
  */
 export class TrayManager {
   private tray: Tray | null = null
+  private mouseThrough = false
 
-  /** 初始化托盘（app ready 后调用）*/
   init(wm: WindowManager, scheduler: Scheduler): void {
-    if (this.tray) return  // 防止重复初始化
+    if (this.tray) return
 
-    // 使用程序生成的纯色图标（P4 阶段替换为真实设计图标）
+    // 从持久化配置恢复鼠标穿透状态
+    this.mouseThrough = appStore.get('settings').mouseThrough ?? false
+    if (this.mouseThrough) wm.setMouseThrough(true)
+
     const icon = buildColorIcon(16, '#FFB7D5')
-
     this.tray = new Tray(icon)
     this.tray.setToolTip('桌面宠物 🐱')
-
-    // 双击托盘图标 → 显示宠物
     this.tray.on('double-click', () => wm.showPet())
 
     this._rebuildMenu(wm, scheduler)
@@ -33,16 +36,15 @@ export class TrayManager {
     this.tray = null
   }
 
-  // ── 内部 ────────────────────────────────────────────────────────────────
+  private _sendState(wm: WindowManager, state: PetState): void {
+    wm.getPetWindow()?.webContents.send(Channels.PET_STATE_CMD, state)
+  }
 
-  /**
-   * 重建上下文菜单
-   * 每次"暂停/恢复"状态变更后调用，保证 label 与调度器实际状态同步
-   */
   private _rebuildMenu(wm: WindowManager, scheduler: Scheduler): void {
     if (!this.tray) return
 
     const pauseLabel = scheduler.isPaused ? '▶  恢复提醒' : '⏸  暂停提醒'
+    const throughLabel = this.mouseThrough ? '🖱  关闭穿透' : '🖱  开启穿透'
 
     const menu = Menu.buildFromTemplate([
       {
@@ -55,6 +57,34 @@ export class TrayManager {
       },
       { type: 'separator' },
       {
+        label: '🐾  跟随鼠标',
+        click: () => this._sendState(wm, 'follow'),
+      },
+      {
+        label: '👁  等待',
+        click: () => this._sendState(wm, 'wait'),
+      },
+      {
+        label: '💤  睡觉',
+        click: () => this._sendState(wm, 'sleep'),
+      },
+      {
+        label: '⭐  待机',
+        click: () => this._sendState(wm, 'idle'),
+      },
+      { type: 'separator' },
+      {
+        label: throughLabel,
+        click: () => {
+          this.mouseThrough = !this.mouseThrough
+          wm.setMouseThrough(this.mouseThrough)
+          const settings = appStore.get('settings')
+          appStore.set('settings', { ...settings, mouseThrough: this.mouseThrough })
+          this._rebuildMenu(wm, scheduler)
+        },
+      },
+      { type: 'separator' },
+      {
         label: '⚙  打开设置',
         click: () => wm.createSettingsWindow(),
       },
@@ -62,12 +92,7 @@ export class TrayManager {
       {
         label: pauseLabel,
         click: () => {
-          if (scheduler.isPaused) {
-            scheduler.resume()
-          } else {
-            scheduler.pause()
-          }
-          // 重建菜单以同步最新状态
+          scheduler.isPaused ? scheduler.resume() : scheduler.pause()
           this._rebuildMenu(wm, scheduler)
         },
       },

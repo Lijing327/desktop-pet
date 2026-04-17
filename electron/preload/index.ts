@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { Channels } from '../shared/channels'
-import type { AppSettings } from '../shared/types'
+import type { AppSettings, PetState } from '../shared/types'
 
 /** 安全暴露给渲染进程的 API */
 const electronAPI = {
@@ -13,24 +13,39 @@ const electronAPI = {
   showPet: (): void => ipcRenderer.send(Channels.SHOW_PET),
   hidePet: (): void => ipcRenderer.send(Channels.HIDE_PET),
 
-  // P1: 拖拽移动（增量，高频 fire-and-forget）
+  // 拖拽移动（增量，高频 fire-and-forget）
   movePetWindowBy: (dx: number, dy: number): void =>
     ipcRenderer.send(Channels.MOVE_PET_WINDOW_BY, dx, dy),
 
-  // P1: 拖拽结束吸附 + 返回最终坐标
+  // 拖拽结束吸附 + 返回最终坐标
   snapPetToEdge: (): Promise<{ x: number; y: number }> =>
     ipcRenderer.invoke(Channels.SNAP_TO_EDGE),
 
-  // P1: 获取当前窗口坐标
+  // 获取当前窗口坐标
   getPetPosition: (): Promise<{ x: number; y: number }> =>
     ipcRenderer.invoke(Channels.GET_PET_POSITION),
+
+  // 获取全局鼠标位置（follow / wait 使用）
+  getCursorPos: (): Promise<{ x: number; y: number }> =>
+    ipcRenderer.invoke(Channels.GET_CURSOR_POS),
+
+  // 鼠标穿透开关
+  setMouseThrough: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke(Channels.SET_MOUSE_THROUGH, enabled),
 
   // 存储
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke(Channels.STORE_GET),
   saveSettings: (patch: Partial<AppSettings>): Promise<void> =>
     ipcRenderer.invoke(Channels.STORE_SET, patch),
 
-  // 主进程推送（P3 提醒联动）
+  // 托盘状态命令（主进程 → 渲染进程推送）
+  onPetStateCmd: (cb: (state: PetState) => void): (() => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, state: PetState): void => cb(state)
+    ipcRenderer.on(Channels.PET_STATE_CMD, handler)
+    return () => ipcRenderer.removeListener(Channels.PET_STATE_CMD, handler)
+  },
+
+  // 提醒联动（主进程 → 渲染进程推送）
   onReminderTrigger: (cb: (type: string) => void): (() => void) => {
     const handler = (_e: Electron.IpcRendererEvent, type: string): void => cb(type)
     ipcRenderer.on(Channels.REMINDER_TRIGGER, handler)

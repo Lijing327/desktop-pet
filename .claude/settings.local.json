@@ -6,7 +6,13 @@
       "Bash(npx electron-vite *)",
       "Bash(node -e \"const p=require\\('path'\\);const e=require\\('electron'\\);console.log\\('Electron path:', e\\);const fs=require\\('fs'\\);console.log\\('Exists:', fs.existsSync\\(String\\(e\\)\\)\\)\")",
       "Read(//tmp/**)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\('D:/00-Project/AI/desktop-pet/resources/金渐层.png'\\); print\\(img.size, img.mode\\)\")",
+      "Bash(python -c \"from PIL import Image; img = Image.open\\('D:/00-Project/AI/desktop-pet/resources/金渐层.png'\\); print\\(img.size, img.mode\\)\")",
+      "Bash(identify D:/00-Project/AI/desktop-pet/resources/金渐层.png)",
+      "Bash(python3 -c \"import rembg; print\\('rembg available'\\)\")",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\('D:/00-Project/AI/desktop-pet/resources/金渐层.png'\\); pixels = list\\(img.getdata\\(\\)[:10]\\); print\\(pixels[:3]\\)\")",
+      "Bash(node *)"
     ]
   }
 }

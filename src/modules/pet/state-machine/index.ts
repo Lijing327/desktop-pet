@@ -1,54 +1,28 @@
-import type { PetState, StateConfig, StateTransition } from './types'
+import type { PetState } from '@/types'
 
-/**
- * 宠物状态机
- *
- * 状态转移规则（权重随机）：
- *   idle  ──6─→ walk
- *         ──3─→ sleep
- *         ──1─→ happy（自发开心）
- *   walk  ──1─→ idle
- *   sleep ──1─→ idle
- *   happy ──1─→ idle（2s 后）
- *   remind──1─→ idle（3s 后）
- */
-const CONFIG: Record<PetState, StateConfig> = {
-  idle: {
-    minDelay: 6_000,
-    maxDelay: 18_000,
-    transitions: [
-      { to: 'walk',  weight: 6 },
-      { to: 'sleep', weight: 3 },
-      { to: 'happy', weight: 1 },
-    ],
-  },
-  walk: {
-    minDelay: 3_000,
-    maxDelay: 8_000,
-    transitions: [{ to: 'idle', weight: 1 }],
-  },
-  sleep: {
-    minDelay: 8_000,
-    maxDelay: 20_000,
-    transitions: [{ to: 'idle', weight: 1 }],
-  },
-  happy: {
-    minDelay: 2_000,
-    maxDelay: 2_000,
-    transitions: [{ to: 'idle', weight: 1 }],
-  },
-  remind: {
-    minDelay: 3_000,
-    maxDelay: 3_000,
-    transitions: [{ to: 'idle', weight: 1 }],
-  },
-}
+/** react / remind 动画持续时间（ms） */
+const REACT_DURATION  = 700
+const REMIND_DURATION = 3000
 
 type StateListener = (state: PetState) => void
 
+/**
+ * 宠物状态机（事件驱动，无自动随机转换）
+ *
+ * 状态优先级：drag > react > remind > follow/wait > idle/sleep
+ *
+ * 外部命令（托盘 / IPC）→ command()
+ * 用户点击               → triggerClick()
+ * 提醒通知               → triggerRemind()
+ * follow 到达目标        → onFollowArrived()
+ * 拖拽开始/结束          → onDragStart() / onDragEnd()
+ */
 export class PetStateMachine {
   private _state: PetState = 'idle'
-  private _timer: ReturnType<typeof setTimeout> | null = null
+  /** react/remind 结束后回到的状态 */
+  private _returnState: PetState = 'idle'
+  private _reactTimer: ReturnType<typeof setTimeout> | null = null
+  private _remindTimer: ReturnType<typeof setTimeout> | null = null
   private _listeners = new Set<StateListener>()
 
   get state(): PetState {
@@ -61,57 +35,76 @@ export class PetStateMachine {
     return () => this._listeners.delete(fn)
   }
 
-  /** 跳转到指定状态并重新调度下一次转换 */
-  transition(to: PetState): void {
-    this._clearTimer()
-    this._state = to
-    this._listeners.forEach((fn) => fn(to))
-    this._schedule()
+  /** 外部命令切换状态（托盘菜单 / IPC 推送） */
+  command(to: PetState): void {
+    // drag 状态由拖拽逻辑独占，不允许外部命令覆盖
+    if (this._state === 'drag') return
+    this._transition(to)
   }
 
-  /** 用户点击触发 — 不打断 remind 状态 */
+  /** 用户点击 */
   triggerClick(): void {
-    if (this._state === 'remind') return
-    this.transition('happy')
+    if (this._state === 'drag') return
+    if (this._state === 'react' || this._state === 'remind') return
+
+    // 睡觉状态：点击唤醒
+    if (this._state === 'sleep') {
+      this._transition('idle')
+      return
+    }
+
+    // 其他状态：播放 react 动画后回到当前状态
+    this._returnState = this._state
+    this._clearTimers()
+    this._state = 'react'
+    this._emit()
+    this._reactTimer = setTimeout(() => this._transition(this._returnState), REACT_DURATION)
   }
 
-  /** 提醒系统触发 */
+  /** 提醒通知触发（不打断 drag / sleep / follow / wait） */
   triggerRemind(): void {
-    this.transition('remind')
+    if (['drag', 'sleep', 'follow', 'wait'].includes(this._state)) return
+    this._returnState = this._state
+    this._clearTimers()
+    this._state = 'remind'
+    this._emit()
+    this._remindTimer = setTimeout(() => this._transition('idle'), REMIND_DURATION)
   }
 
-  /** 启动自动调度（实例创建后调用一次）*/
-  start(): void {
-    this._schedule()
+  /** follow 模式到达目标后由 usePetBehavior 调用 */
+  onFollowArrived(): void {
+    if (this._state === 'follow') this._transition('idle')
+  }
+
+  /** 拖拽开始 */
+  onDragStart(): void {
+    this._clearTimers()
+    this._state = 'drag'
+    this._emit()
+  }
+
+  /** 拖拽结束 */
+  onDragEnd(): void {
+    if (this._state === 'drag') this._transition('idle')
   }
 
   destroy(): void {
-    this._clearTimer()
+    this._clearTimers()
     this._listeners.clear()
   }
 
-  private _schedule(): void {
-    const cfg = CONFIG[this._state]
-    const delay = cfg.minDelay + Math.random() * (cfg.maxDelay - cfg.minDelay)
-    const next = this._pick(cfg.transitions)
-    this._timer = setTimeout(() => this.transition(next), delay)
+  private _transition(to: PetState): void {
+    this._clearTimers()
+    this._state = to
+    this._emit()
   }
 
-  private _clearTimer(): void {
-    if (this._timer) {
-      clearTimeout(this._timer)
-      this._timer = null
-    }
+  private _emit(): void {
+    this._listeners.forEach((fn) => fn(this._state))
   }
 
-  /** 按权重随机选择下一个状态 */
-  private _pick(transitions: StateTransition[]): PetState {
-    const total = transitions.reduce((s, t) => s + t.weight, 0)
-    let r = Math.random() * total
-    for (const t of transitions) {
-      r -= t.weight
-      if (r <= 0) return t.to
-    }
-    return transitions[0].to
+  private _clearTimers(): void {
+    if (this._reactTimer)  { clearTimeout(this._reactTimer);  this._reactTimer  = null }
+    if (this._remindTimer) { clearTimeout(this._remindTimer); this._remindTimer = null }
   }
 }

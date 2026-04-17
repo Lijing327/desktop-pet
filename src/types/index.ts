@@ -13,8 +13,11 @@ export interface ElectronAPI {
   movePetWindowBy: (dx: number, dy: number) => void
   snapPetToEdge: () => Promise<{ x: number; y: number }>
   getPetPosition: () => Promise<{ x: number; y: number }>
+  getCursorPos: () => Promise<{ x: number; y: number }>
+  setMouseThrough: (enabled: boolean) => Promise<void>
   getSettings: () => Promise<_AppSettings>
   saveSettings: (patch: Partial<_AppSettings>) => Promise<void>
+  onPetStateCmd: (cb: (state: import('../../electron/shared/types').PetState) => void) => () => void
   onReminderTrigger: (cb: (type: string) => void) => () => void
 }
 

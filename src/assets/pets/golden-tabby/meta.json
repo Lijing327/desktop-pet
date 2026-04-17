@@ -1,0 +1,44 @@
+{
+  "id": "golden-tabby",
+  "name": "金渐层",
+  "version": "1.0.0",
+  "type": "single-image",
+  "displaySize": { "width": 160, "height": 160 },
+  "bgRemoval": {
+    "tolerance": 22,
+    "edgeSeeding": true
+  },
+  "eyes": {
+    "left": {
+      "cx": 0.465,
+      "cy": 0.445,
+      "rx": 0.068,
+      "ry": 0.050,
+      "furColor": "#C88A28"
+    },
+    "right": {
+      "cx": 0.635,
+      "cy": 0.445,
+      "rx": 0.068,
+      "ry": 0.050,
+      "furColor": "#C88A28"
+    }
+  },
+  "animation": {
+    "lookAtMaxAngle": 3,
+    "blinkIntervalMin": 3000,
+    "blinkIntervalRandom": 2500,
+    "blinkDuration": 130
+  },
+  "layers": {
+    "body":     { "path": "base/full.png", "ready": true,  "note": "单图占位，后续拆层替换" },
+    "head":     { "path": null,            "ready": false },
+    "earL":     { "path": null,            "ready": false },
+    "earR":     { "path": null,            "ready": false },
+    "tail":     { "path": null,            "ready": false },
+    "eyeLOpen": { "path": null,            "ready": false },
+    "eyeLClose":{ "path": null,            "ready": false },
+    "eyeROpen": { "path": null,            "ready": false },
+    "eyeRClose":{ "path": null,            "ready": false }
+  }
+}
