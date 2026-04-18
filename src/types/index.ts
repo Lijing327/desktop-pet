@@ -1,9 +1,13 @@
-import type { AppSettings as _AppSettings } from '../../electron/shared/types'
+﻿import type {
+  AppSettings as _AppSettings,
+  AppState,
+  PetState,
+  ReminderType,
+} from '../../electron/shared/types'
 
-export type { AppSettings } from '../../electron/shared/types'
-export type { PetState, ReminderType } from '../../electron/shared/types'
+export type { AppSettings, AppState, PetState, ReminderType } from '../../electron/shared/types'
 
-/** window.electronAPI 接口定义（与 preload 保持一致）*/
+/** window.electronAPI 接口定义（与 preload 保持一致） */
 export interface ElectronAPI {
   ping: () => Promise<string>
   openSettings: () => void
@@ -16,9 +20,12 @@ export interface ElectronAPI {
   getCursorPos: () => Promise<{ x: number; y: number }>
   setMouseThrough: (enabled: boolean) => Promise<void>
   getSettings: () => Promise<_AppSettings>
-  saveSettings: (patch: Partial<_AppSettings>) => Promise<void>
-  onPetStateCmd: (cb: (state: import('../../electron/shared/types').PetState) => void) => () => void
-  onReminderTrigger: (cb: (type: string) => void) => () => void
+  saveSettings: (patch: Partial<_AppSettings>) => Promise<_AppSettings>
+  getAppState: () => Promise<AppState>
+  setAppState: (state: AppState) => Promise<AppState>
+  onPetStateCmd: (cb: (state: PetState) => void) => () => void
+  onReminderTrigger: (cb: (type: ReminderType) => void) => () => void
+  onAppStateChanged: (cb: (state: AppState) => void) => () => void
 }
 
 declare global {

@@ -1,63 +1,88 @@
-<template>
+﻿<template>
   <div class="settings-window">
     <header class="header">
-      <h1>设置</h1>
+      <h1>设置中心</h1>
       <span class="version">版本 v0.1.0</span>
     </header>
 
-    <main class="content" v-if="settings">
-      <!-- 提醒设置 -->
+    <main v-if="settings" class="content">
       <section class="section">
-        <h2>提醒</h2>
+        <h2>提醒系统</h2>
+
+        <div class="field">
+          <label>
+            <input type="checkbox" v-model="settings.reminders.pomodoroEnabled" @change="save" />
+            番茄钟提醒
+          </label>
+        </div>
+        <div v-if="settings.reminders.pomodoroEnabled" class="sub-grid">
+          <label>
+            工作时长（分钟）
+            <input
+              type="number"
+              min="1"
+              max="180"
+              v-model.number="settings.reminders.pomodoroWorkMinutes"
+              @change="save"
+            />
+          </label>
+          <label>
+            休息时长（分钟）
+            <input
+              type="number"
+              min="1"
+              max="60"
+              v-model.number="settings.reminders.pomodoroBreakMinutes"
+              @change="save"
+            />
+          </label>
+        </div>
 
         <div class="field">
           <label>
             <input type="checkbox" v-model="settings.reminders.waterEnabled" @change="save" />
             喝水提醒
           </label>
-          <div v-if="settings.reminders.waterEnabled" class="sub-field">
-            每
+        </div>
+        <div v-if="settings.reminders.waterEnabled" class="sub-grid">
+          <label>
+            间隔（分钟）
             <input
               type="number"
-              v-model.number="settings.reminders.waterIntervalMinutes"
               min="15"
               max="240"
+              v-model.number="settings.reminders.waterIntervalMinutes"
               @change="save"
             />
-            分钟提醒一次
-          </div>
+          </label>
         </div>
 
         <div class="field">
           <label>
-            <input type="checkbox" v-model="settings.reminders.offWorkEnabled" @change="save" />
-            下班提醒
+            <input type="checkbox" v-model="settings.reminders.sedentaryEnabled" @change="save" />
+            久坐提醒
           </label>
-          <div v-if="settings.reminders.offWorkEnabled" class="sub-field">
-            下班时间
-            <input type="time" v-model="settings.reminders.offWorkTime" @change="save" />
-          </div>
         </div>
-
-        <div class="field">
+        <div v-if="settings.reminders.sedentaryEnabled" class="sub-grid">
           <label>
-            <input type="checkbox" v-model="settings.reminders.lunchBreakEnabled" @change="save" />
-            午休提醒
+            间隔（分钟）
+            <input
+              type="number"
+              min="20"
+              max="240"
+              v-model.number="settings.reminders.sedentaryIntervalMinutes"
+              @change="save"
+            />
           </label>
-          <div v-if="settings.reminders.lunchBreakEnabled" class="sub-field">
-            午休时间
-            <input type="time" v-model="settings.reminders.lunchBreakTime" @change="save" />
-          </div>
         </div>
       </section>
 
-      <!-- 互动设置 -->
       <section class="section">
-        <h2>互动</h2>
+        <h2>互动设置</h2>
         <div class="field">
           <label>
             <input type="checkbox" v-model="settings.interaction.bubbleEnabled" @change="save" />
-            显示文案气泡
+            显示气泡文案
           </label>
         </div>
         <div class="field">
@@ -70,9 +95,8 @@
         </div>
       </section>
 
-      <!-- 应用设置 -->
       <section class="section">
-        <h2>应用</h2>
+        <h2>应用设置</h2>
         <div class="field">
           <label>
             <input type="checkbox" v-model="settings.app.launchAtStartup" @change="save" />
@@ -94,7 +118,7 @@
       </section>
     </main>
 
-    <div v-else class="loading">加载中…</div>
+    <div v-else class="loading">加载中...</div>
 
     <footer class="footer">
       <button class="btn-close" @click="close">关闭</button>
@@ -112,10 +136,14 @@ async function load(): Promise<void> {
   settings.value = await window.electronAPI.getSettings()
 }
 
+/**
+ * 设置改动立即生效：
+ * 1. 通过统一 IPC 保存到本地 store
+ * 2. 主进程立即重建调度器
+ */
 async function save(): Promise<void> {
-  if (settings.value) {
-    await window.electronAPI.saveSettings(settings.value)
-  }
+  if (!settings.value) return
+  settings.value = await window.electronAPI.saveSettings(settings.value)
 }
 
 function close(): void {
@@ -177,7 +205,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 8px 0;
   font-size: 15px;
 }
 
@@ -188,38 +216,24 @@ onMounted(load)
   cursor: pointer;
 }
 
-.field input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
+.sub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 6px 0 10px;
 }
 
-.sub-field {
+.sub-grid label {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
   font-size: 13px;
   color: #3a3a3c;
 }
 
-.sub-field input[type='number'] {
-  width: 60px;
-  padding: 4px 6px;
-  border: 1px solid #c7c7cc;
-  border-radius: 6px;
-  font-size: 13px;
-  text-align: center;
-}
-
-.sub-field input[type='time'] {
-  padding: 4px 6px;
-  border: 1px solid #c7c7cc;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
+input[type='number'],
 select {
-  padding: 4px 8px;
+  padding: 6px 8px;
   border: 1px solid #c7c7cc;
   border-radius: 6px;
   font-size: 13px;

@@ -1,11 +1,6 @@
-<template>
+﻿<template>
   <div class="pet-window" @mousedown="startDrag">
-    <div
-      class="pet-area"
-      @click="onPetClick"
-      @mouseenter="onMouseEnter"
-      @mouseleave="onMouseLeave"
-    >
+    <div class="pet-area" @click="onPetClick" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
       <PetLayeredCharacter
         :state="petStore.state"
         :anim-override="mergedAnimOverride"
@@ -26,6 +21,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import type { AppState, ReminderType } from '@/types'
 import PetLayeredCharacter from '@/modules/pet/components/PetLayeredCharacter.vue'
 import { BubbleDisplay, useBubble } from '@/modules/bubble'
 import { usePetStore } from '@/app/stores/pet'
@@ -33,7 +29,7 @@ import { useDrag } from '@/app/composables/useDrag'
 import { useInteraction } from '@/modules/pet/useInteraction'
 import { usePetBehavior } from '@/composables/usePetBehavior'
 
-/** 6 秒巡检机制保持兼容 */
+/** 保持现有 6 秒巡检机制 */
 const INACTIVITY_TICK_MS = 6000
 /** sleep 退出 wake 过渡时长（300~500ms） */
 const WAKE_DURATION = 380
@@ -41,12 +37,12 @@ const WAKE_DURATION = 380
 const ANNOYED_COOLDOWN_MS = 9000
 /** 刚睡醒后短时间降低再次入睡概率 */
 const WAKE_SLEEP_SHIELD_MS = 22000
-/** follow 刚完成后短时保持 idle 节奏 */
+/** follow 刚完成后短时提升 idle 留驻 */
 const FOLLOW_SETTLE_MS = 9000
 
 const petStore = usePetStore()
 
-// idle 拆层渲染开关：'layered' 启用，'flat' 使用原整图
+// idle 拆层渲染开关：layered=拆层，flat=整图
 const idleRenderMode = ref<'layered' | 'flat'>('layered')
 
 const {
@@ -56,7 +52,9 @@ const {
   cleanup: cleanupBubble,
 } = useBubble()
 
+const appState = ref<AppState>('idle')
 const lastInteractAt = ref(Date.now())
+
 function markInteraction(): void {
   lastInteractAt.value = Date.now()
 }
@@ -123,7 +121,7 @@ watch(
       idleLookTimer = null
     }
 
-    // sleep -> idle：先走 wake 动画过渡，再维持 idle
+    // sleep -> idle：先 wake 轻过渡，再回正常 idle
     if (prevState === 'sleep' && state === 'idle') {
       wakeSleepShieldUntil.value = Date.now() + WAKE_SLEEP_SHIELD_MS
       if (wakeAnimTimer) clearTimeout(wakeAnimTimer)
@@ -134,7 +132,7 @@ watch(
       }, WAKE_DURATION)
     }
 
-    // follow 完成后短时抑制再次 follow，提升 idle 留驻概率
+    // follow 完成后短时优先回 idle
     if (prevState === 'follow' && state === 'idle') {
       followSettleUntil.value = Date.now() + FOLLOW_SETTLE_MS
     }
@@ -149,7 +147,7 @@ const currentFacingRight = computed(() => {
   return true
 })
 
-// 仅在 idle 状态启用路线B拆层
+// 仅在 idle 状态启用路线 B 拆层
 const enableIdleLayerRig = computed(() => {
   return idleRenderMode.value === 'layered' && petStore.state === 'idle'
 })
@@ -161,12 +159,9 @@ function openSettings(): void {
 /**
  * 时间节律：
  * - 夜晚（22:00-06:59）提高 sleep 倾向
- * - 白天（07:00-21:59）提升 follow 活跃度
+ * - 白天（07:00-21:59）提高 follow 活跃度
  */
-function getRhythmProfile(now = new Date()): {
-  sleepMultiplier: number
-  dayFollowChance: number
-} {
+function getRhythmProfile(now = new Date()): { sleepMultiplier: number; dayFollowChance: number } {
   const hour = now.getHours()
   const isNight = hour >= 22 || hour < 7
   if (isNight) return { sleepMultiplier: 1.45, dayFollowChance: 0 }
@@ -175,20 +170,27 @@ function getRhythmProfile(now = new Date()): {
 
 let unlistenRemind: (() => void) | null = null
 let unlistenStateCmd: (() => void) | null = null
+let unlistenAppState: (() => void) | null = null
 let inactivityTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   await petStore.init()
 
-  unlistenRemind = window.electronAPI.onReminderTrigger((type) => {
+  appState.value = await window.electronAPI.getAppState()
+  unlistenAppState = window.electronAPI.onAppStateChanged((state) => {
+    appState.value = state
+  })
+
+  unlistenRemind = window.electronAPI.onReminderTrigger((type: ReminderType) => {
     markInteraction()
     petStore.handleRemind()
-    const msgMap: Record<string, string> = {
-      water: '该喝水了，工作再忙也要补水。',
-      offWork: '快到下班时间了，再坚持一下。',
-      lunchBreak: '午休时间到了，休息一会儿吧。',
+    const msgMap: Record<ReminderType, string> = {
+      water: '该喝水啦，补充点水分。',
+      sedentary: '已经久坐一段时间了，起来活动一下吧。',
+      pomodoroWorkEnd: '番茄钟工作阶段结束，休息一下。',
+      pomodoroBreakEnd: '休息结束，准备开始下一轮专注。',
     }
-    showBubble({ text: msgMap[type] ?? undefined, category: 'reminder' })
+    showBubble({ text: msgMap[type], category: 'reminder' })
   })
 
   unlistenStateCmd = window.electronAPI.onPetStateCmd((state) => {
@@ -201,14 +203,14 @@ onMounted(async () => {
     const inactiveMs = now - lastInteractAt.value
     const profile = getRhythmProfile()
 
-    // 与现有 6 秒巡检兼容：在倍率基础上叠加“刚醒防回睡”记忆
+    // 与现有 6 秒巡检兼容，叠加“刚醒防回睡”
     let sleepInput = inactiveMs * profile.sleepMultiplier
     if (now < wakeSleepShieldUntil.value) {
       sleepInput = Math.max(0, sleepInput - (wakeSleepShieldUntil.value - now))
     }
     petStore.tickInactivity(sleepInput)
 
-    // 白天提升活跃度，但 follow 完成后短时间内优先保持 idle
+    // 白天提升活跃度，但 follow 刚完成后短时间内优先保持 idle
     const canBoostFollow =
       profile.dayFollowChance > 0 &&
       now >= followSettleUntil.value &&
@@ -226,6 +228,7 @@ onMounted(async () => {
 onUnmounted(() => {
   unlistenRemind?.()
   unlistenStateCmd?.()
+  unlistenAppState?.()
   if (idleLookTimer) clearInterval(idleLookTimer)
   if (inactivityTimer) clearInterval(inactivityTimer)
   if (wakeAnimTimer) clearTimeout(wakeAnimTimer)

@@ -1,16 +1,28 @@
-/** 主进程与渲染进程共享的类型定义 */
+/** 主进程与渲染进程共享类型 */
+
+/** 产品基础状态（MVP） */
+export type AppState = 'idle' | 'working' | 'resting' | 'sleeping' | 'reminding'
+
+/** 提醒类型（MVP） */
+export type ReminderType = 'pomodoroWorkEnd' | 'pomodoroBreakEnd' | 'water' | 'sedentary'
+
+/** 宠物动画状态（兼容现有渲染状态机） */
+export type PetState = 'idle' | 'follow' | 'wait' | 'sleep' | 'drag' | 'react' | 'remind'
+
+export interface ReminderSettings {
+  pomodoroEnabled: boolean
+  pomodoroWorkMinutes: number
+  pomodoroBreakMinutes: number
+  waterEnabled: boolean
+  waterIntervalMinutes: number
+  sedentaryEnabled: boolean
+  sedentaryIntervalMinutes: number
+}
 
 export interface AppSettings {
   petPosition: { x: number; y: number }
   mouseThrough: boolean
-  reminders: {
-    waterEnabled: boolean
-    waterIntervalMinutes: number
-    offWorkEnabled: boolean
-    offWorkTime: string       // 'HH:mm' 格式
-    lunchBreakEnabled: boolean
-    lunchBreakTime: string
-  }
+  reminders: ReminderSettings
   interaction: {
     bubbleEnabled: boolean
     bubbleFrequency: 'low' | 'medium' | 'high'
@@ -23,15 +35,16 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  petPosition: { x: -1, y: -1 },   // -1 表示首次启动用默认位置
+  petPosition: { x: -1, y: -1 },
   mouseThrough: false,
   reminders: {
+    pomodoroEnabled: false,
+    pomodoroWorkMinutes: 25,
+    pomodoroBreakMinutes: 5,
     waterEnabled: true,
     waterIntervalMinutes: 60,
-    offWorkEnabled: true,
-    offWorkTime: '18:00',
-    lunchBreakEnabled: false,
-    lunchBreakTime: '12:00',
+    sedentaryEnabled: true,
+    sedentaryIntervalMinutes: 60,
   },
   interaction: {
     bubbleEnabled: true,
@@ -43,9 +56,3 @@ export const DEFAULT_SETTINGS: AppSettings = {
     hideToTray: true,
   },
 }
-
-/** 提醒类型（P3 扩展点） */
-export type ReminderType = 'water' | 'offWork' | 'lunchBreak'
-
-/** 宠物状态 */
-export type PetState = 'idle' | 'follow' | 'wait' | 'sleep' | 'drag' | 'react' | 'remind'

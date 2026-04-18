@@ -1,52 +1,53 @@
 import { Notification } from 'electron'
 import { Channels } from '../shared/channels'
+import type { ReminderType } from '../shared/types'
+import { appStore } from './store'
 import type { WindowManager } from './window-manager'
 
 /** 每种提醒类型对应的系统通知文案 */
-const NOTIFICATION_COPY: Record<string, { title: string; body: string }> = {
-  water:      { title: '该喝水了 💧', body: '再卷也要补水，保持健康才能继续冲！' },
-  offWork:    { title: '快下班了 🎉', body: '今日份打工即将结束，坚持最后一下！' },
-  lunchBreak: { title: '午休时间到 😴', body: '休息一会儿，下午精力更充沛！' },
+const NOTIFICATION_COPY: Record<ReminderType, { title: string; body: string }> = {
+  pomodoroWorkEnd: { title: '番茄钟结束', body: '工作阶段完成，休息一下。' },
+  pomodoroBreakEnd: { title: '休息结束', body: '开始下一轮专注吧。' },
+  water: { title: '喝水提醒', body: '起来喝点水，保持状态。' },
+  sedentary: { title: '久坐提醒', body: '已久坐一段时间，起身活动一下。' },
 }
 
+/**
+ * 提醒通知管理器
+ * 职责：
+ * 1. 发送系统通知
+ * 2. 推送提醒事件到渲染层，让宠物进入提醒反馈
+ */
 export class NotificationManager {
   constructor(private readonly wm: WindowManager) {}
 
-  /**
-   * 触发提醒的完整链路：
-   *   1. 发送系统级通知（有降级处理）
-   *   2. 推送 IPC 到渲染进程，让宠物进入 remind 状态
-   */
-  fire(type: string): void {
+  fire(type: ReminderType): void {
     this._sendSystemNotification(type)
     this._pushToRenderer(type)
   }
 
-  /** 直接发送自定义系统通知 */
   send(title: string, body: string): void {
     if (!Notification.isSupported()) return
+    if (!appStore.get('settings').app.enableNotification) return
     try {
       new Notification({ title, body }).show()
     } catch {
-      // 静默降级：系统通知不可用时不影响桌宠提醒
+      // 降级处理：通知不可用时静默忽略
     }
   }
 
-  private _sendSystemNotification(type: string): void {
+  private _sendSystemNotification(type: ReminderType): void {
     if (!Notification.isSupported()) return
-    const copy = NOTIFICATION_COPY[type] ?? {
-      title: '提醒',
-      body: '桌面宠物提醒你注意休息 🐱',
-    }
+    if (!appStore.get('settings').app.enableNotification) return
+    const copy = NOTIFICATION_COPY[type]
     try {
       new Notification(copy).show()
     } catch {
-      // 静默降级
+      // 降级处理：通知不可用时静默忽略
     }
   }
 
-  /** 通过 IPC 推送到宠物窗口渲染进程 */
-  private _pushToRenderer(type: string): void {
+  private _pushToRenderer(type: ReminderType): void {
     const win = this.wm.getPetWindow()
     if (!win || win.isDestroyed()) return
     win.webContents.send(Channels.REMINDER_TRIGGER, type)
