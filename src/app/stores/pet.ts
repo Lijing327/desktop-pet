@@ -8,7 +8,7 @@ export const usePetStore = defineStore('pet', () => {
   const state = ref<PetState>(machine.state)
   const position = ref({ x: 0, y: 0 })
 
-  // 同步状态机 → reactive ref
+  // 同步状态机到 reactive 状态
   const unsubscribe = machine.onChange((s) => {
     state.value = s
   })
@@ -20,7 +20,7 @@ export const usePetStore = defineStore('pet', () => {
     }
   }
 
-  /** 外部命令切换状态（来自托盘 / IPC 推送） */
+  /** 外部命令切换（托盘 / IPC） */
   function command(to: PetState): void {
     machine.command(to)
   }
@@ -30,14 +30,24 @@ export const usePetStore = defineStore('pet', () => {
     machine.triggerClick()
   }
 
+  /** 鼠标靠近时触发短反馈 */
+  function handleProximity(): void {
+    machine.triggerProximity()
+  }
+
   /** 提醒通知触发 */
   function handleRemind(): void {
     machine.triggerRemind()
   }
 
-  /** follow 模式到达目标 */
+  /** follow 到达目标 */
   function onFollowArrived(): void {
     machine.onFollowArrived()
+  }
+
+  /** 根据无交互时长推进行为节奏 */
+  function tickInactivity(inactiveMs: number): void {
+    machine.maybeSleepByInactivity(inactiveMs)
   }
 
   /** 拖拽开始 */
@@ -45,7 +55,7 @@ export const usePetStore = defineStore('pet', () => {
     machine.onDragStart()
   }
 
-  /** 拖拽结束并保存位置 */
+  /** 拖拽结束并持久化位置 */
   async function onDragEnd(x: number, y: number): Promise<void> {
     machine.onDragEnd()
     position.value = { x, y }
@@ -53,7 +63,7 @@ export const usePetStore = defineStore('pet', () => {
     await window.electronAPI.saveSettings({ ...settings, petPosition: { x, y } })
   }
 
-  // 兼容旧调用（PetWindow 中 useDrag onDragEnd 回调）
+  // 兼容旧调用
   async function savePosition(x: number, y: number): Promise<void> {
     await onDragEnd(x, y)
   }
@@ -69,8 +79,10 @@ export const usePetStore = defineStore('pet', () => {
     init,
     command,
     handleClick,
+    handleProximity,
     handleRemind,
     onFollowArrived,
+    tickInactivity,
     onDragStart,
     onDragEnd,
     savePosition,

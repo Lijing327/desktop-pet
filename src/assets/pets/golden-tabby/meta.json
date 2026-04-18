@@ -1,9 +1,12 @@
 {
   "id": "golden-tabby",
   "name": "金渐层",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "single-image",
-  "displaySize": { "width": 160, "height": 160 },
+  "displaySize": {
+    "width": 160,
+    "height": 160
+  },
   "bgRemoval": {
     "tolerance": 22,
     "edgeSeeding": true
@@ -13,14 +16,14 @@
       "cx": 0.465,
       "cy": 0.445,
       "rx": 0.068,
-      "ry": 0.050,
+      "ry": 0.05,
       "furColor": "#C88A28"
     },
     "right": {
       "cx": 0.635,
       "cy": 0.445,
       "rx": 0.068,
-      "ry": 0.050,
+      "ry": 0.05,
       "furColor": "#C88A28"
     }
   },
@@ -31,14 +34,143 @@
     "blinkDuration": 130
   },
   "layers": {
-    "body":     { "path": "base/full.png", "ready": true,  "note": "单图占位，后续拆层替换" },
-    "head":     { "path": null,            "ready": false },
-    "earL":     { "path": null,            "ready": false },
-    "earR":     { "path": null,            "ready": false },
-    "tail":     { "path": null,            "ready": false },
-    "eyeLOpen": { "path": null,            "ready": false },
-    "eyeLClose":{ "path": null,            "ready": false },
-    "eyeROpen": { "path": null,            "ready": false },
-    "eyeRClose":{ "path": null,            "ready": false }
+    "body": {
+      "path": "layers/body.png",
+      "ready": true
+    },
+    "head": {
+      "path": "layers/head.png",
+      "ready": true
+    },
+    "earL": {
+      "path": "layers/ear-left.png",
+      "ready": true
+    },
+    "earR": {
+      "path": "layers/ear-right.png",
+      "ready": true
+    },
+    "tail": {
+      "path": "layers/tail.png",
+      "ready": true
+    },
+    "eyeLOpen": {
+      "path": "layers/eye-left-open.png",
+      "ready": true
+    },
+    "eyeLClose": {
+      "path": "layers/eye-left-close.png",
+      "ready": true
+    },
+    "eyeROpen": {
+      "path": "layers/eye-right-open.png",
+      "ready": true
+    },
+    "eyeRClose": {
+      "path": "layers/eye-right-close.png",
+      "ready": true
+    }
+  },
+  "idleLayerRig": {
+    "sourceSize": {
+      "width": 2048,
+      "height": 2048
+    },
+    "headLocalAdjust": {
+      "x": 0,
+      "y": 0
+    },
+    "earLocalAdjust": {
+      "left": {
+        "x": -1.5,
+        "y": -1
+      },
+      "right": {
+        "x": 1.5,
+        "y": -1
+      }
+    },
+    "eyeLocalAdjust": {
+      "left": {
+        "x": -2,
+        "y": -1
+      },
+      "right": {
+        "x": 2,
+        "y": -1
+      }
+    },
+    "parts": {
+      "body": {
+        "x": 660,
+        "y": 980,
+        "w": 760,
+        "h": 640,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.7
+        }
+      },
+      "head": {
+        "x": 790,
+        "y": 700,
+        "w": 380,
+        "h": 380,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.85
+        }
+      },
+      "tail": {
+        "x": 1160,
+        "y": 980,
+        "w": 380,
+        "h": 520,
+        "pivot": {
+          "x": 0.9,
+          "y": 0.95
+        }
+      },
+      "earL": {
+        "x": 830,
+        "y": 620,
+        "w": 240,
+        "h": 240,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.95
+        }
+      },
+      "earR": {
+        "x": 1010,
+        "y": 620,
+        "w": 240,
+        "h": 240,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.95
+        }
+      },
+      "eyeL": {
+        "x": 852,
+        "y": 822,
+        "w": 200,
+        "h": 140,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      },
+      "eyeR": {
+        "x": 972,
+        "y": 822,
+        "w": 200,
+        "h": 140,
+        "pivot": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      }
+    }
   }
 }

@@ -1,17 +1,18 @@
 import { ref } from 'vue'
 
 interface DragOptions {
-  /** 超过移动阈值、拖拽正式开始时的回调 */
+  /** 超过位移阈值并正式进入拖拽时触发 */
   onDragStart?: () => void
-  /** 拖拽结束（区分点击和拖拽后）回调，传入最终屏幕坐标 */
+  /** 拖拽结束回调，传最终屏幕坐标 */
   onDragEnd?: (x: number, y: number) => void
-  /** 移动多少像素才算"拖拽"而非"点击" */
+  /** 触发拖拽的最小位移阈值 */
   threshold?: number
 }
 
 export function useDrag(options: DragOptions = {}) {
+  /** true 表示已经进入“真实拖拽中” */
   const isDragging = ref(false)
-  /** 本次 mousedown → mouseup 是否超过了移动阈值 */
+  /** 本次 mousedown -> mouseup 是否越过拖拽阈值 */
   const hasMoved = ref(false)
 
   function startDrag(e: MouseEvent): void {
@@ -19,7 +20,7 @@ export function useDrag(options: DragOptions = {}) {
     e.preventDefault()
 
     hasMoved.value = false
-    isDragging.value = true
+    isDragging.value = false
 
     const threshold = options.threshold ?? 5
     let lastX = e.screenX
@@ -34,6 +35,7 @@ export function useDrag(options: DragOptions = {}) {
 
       if (totalDist > threshold && !hasMoved.value) {
         hasMoved.value = true
+        isDragging.value = true
         if (!dragStartFired) {
           dragStartFired = true
           options.onDragStart?.()
